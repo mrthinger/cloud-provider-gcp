@@ -69,6 +69,13 @@ type GKENetworkParamSetStatus struct {
 	// PodCIDRs specifies the CIDRs from which IPs will be used for Pod interfaces
 	// +optional
 	PodCIDRs *NetworkRanges `json:"podCIDRs,omitempty"`
+
+	// Conditions is a field representing the current conditions of the GKENetworkParamSet.
+	Conditions []metav1.Condition `json:"conditions"`
+
+	// NetworkName specifies which Network object is currently referencing this GKENetworkParamSet
+	// +optional
+	NetworkName string `json:"networkName"`
 }
 
 // +genclient

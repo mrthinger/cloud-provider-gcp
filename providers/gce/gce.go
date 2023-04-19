@@ -43,7 +43,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -129,8 +129,10 @@ type Cloud struct {
 	// managedZones will be set to the 1 zone if running a single zone cluster
 	// it will be set to ALL zones in region for any multi-zone cluster
 	// Use GetAllCurrentZones to get only zones that contain nodes
-	managedZones []string
-	networkURL   string
+	managedZones   []string
+	networkName    string
+	subnetworkName string
+	networkURL     string
 	// unsafeIsLegacyNetwork should be used only via IsLegacyNetwork() accessor,
 	// to ensure it was properly initialized.
 	unsafeIsLegacyNetwork bool
@@ -534,6 +536,8 @@ func CreateGCECloud(config *CloudConfig) (*Cloud, error) {
 		regional:                 config.Regional,
 		localZone:                config.Zone,
 		managedZones:             config.ManagedZones,
+		networkName:              config.NetworkName,
+		subnetworkName:           config.SubnetworkName,
 		networkURL:               networkURL,
 		unsafeIsLegacyNetwork:    isLegacyNetwork,
 		unsafeSubnetworkURL:      subnetURL,
@@ -741,9 +745,19 @@ func (g *Cloud) OnXPN() bool {
 	return g.onXPN
 }
 
+// NetworkName returns the network name
+func (g *Cloud) NetworkName() string {
+	return g.networkName
+}
+
 // NetworkURL returns the network url
 func (g *Cloud) NetworkURL() string {
 	return g.networkURL
+}
+
+// SubnetworkName returns the subnetwork name
+func (g *Cloud) SubnetworkName() string {
+	return g.subnetworkName
 }
 
 // SubnetworkURL returns the subnetwork url

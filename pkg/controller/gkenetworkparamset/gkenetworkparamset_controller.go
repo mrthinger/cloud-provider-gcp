@@ -252,7 +252,7 @@ func (c *Controller) validateGKENetworkParamSet(ctx context.Context, params *net
 			return nil, err
 		}
 		for _, otherGNP := range gnpList.Items {
-			if params.Spec.VPC == otherGNP.Spec.VPC {
+			if params.Name != otherGNP.Name && params.Spec.VPC == otherGNP.Spec.VPC && params.CreationTimestamp.After(otherGNP.CreationTimestamp.Time) {
 				return &validation{
 					IsValid:      false,
 					ErrorType:    DeviceModeVPCAlreadyInUse,

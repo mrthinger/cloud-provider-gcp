@@ -18,6 +18,7 @@ package gkenetworkparamset
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -37,6 +38,8 @@ import (
 
 	controllersmetrics "k8s.io/component-base/metrics/prometheus/controllers"
 )
+
+type GNPError string
 
 const (
 	GNPKind                  = "GKENetworkParamSet"
@@ -187,7 +190,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 
 type validation struct {
 	IsValid      bool
-	ErrorType    string
+	ErrorReason  string
 	ErrorMessage string
 }
 
@@ -195,7 +198,7 @@ func (c *Controller) getAndValidateSubnet(ctx context.Context, params *networkv1
 	if params.Spec.VPCSubnet == "" {
 		return nil, &validation{
 			IsValid:      false,
-			ErrorType:    SubnetNotFound,
+			ErrorReason:  SubnetNotFound,
 			ErrorMessage: fmt.Sprintf("subnet not specified"),
 		}
 	}
@@ -206,7 +209,7 @@ func (c *Controller) getAndValidateSubnet(ctx context.Context, params *networkv1
 		fetchSubnetErrs.Inc()
 		return nil, &validation{
 			IsValid:      false,
-			ErrorType:    SubnetNotFound,
+			ErrorReason:  SubnetNotFound,
 			ErrorMessage: fmt.Sprintf("%s not found in %s", params.Spec.VPCSubnet, params.Spec.VPC),
 		}
 	}
@@ -229,7 +232,7 @@ func (c *Controller) validateGKENetworkParamSet(ctx context.Context, params *net
 			if !found {
 				return &validation{
 					IsValid:      false,
-					ErrorType:    SecondaryRangeNotFound,
+					ErrorReason:  SecondaryRangeNotFound,
 					ErrorMessage: fmt.Sprintf("%s not found in %s", rangeName, params.Spec.VPCSubnet),
 				}, nil
 			}
@@ -240,7 +243,7 @@ func (c *Controller) validateGKENetworkParamSet(ctx context.Context, params *net
 	if params.Spec.DeviceMode != "" && params.Spec.PodIPv4Ranges != nil && len(params.Spec.PodIPv4Ranges.RangeNames) > 0 {
 		return &validation{
 			IsValid:      false,
-			ErrorType:    DeviceModeCantBeUsedWithSecondaryRange,
+			ErrorReason:  DeviceModeCantBeUsedWithSecondaryRange,
 			ErrorMessage: "deviceMode and secondary range can not be specified at the same time",
 		}, nil
 	}
@@ -255,7 +258,7 @@ func (c *Controller) validateGKENetworkParamSet(ctx context.Context, params *net
 			if params.Name != otherGNP.Name && params.Spec.VPC == otherGNP.Spec.VPC && params.CreationTimestamp.After(otherGNP.CreationTimestamp.Time) {
 				return &validation{
 					IsValid:      false,
-					ErrorType:    DeviceModeVPCAlreadyInUse,
+					ErrorReason:  DeviceModeVPCAlreadyInUse,
 					ErrorMessage: fmt.Sprintf("GNP with deviceMode can't reference a VPC already in use. VPC '%s' is already in use by '%s'", otherGNP.Spec.VPC, otherGNP.Name),
 				}, nil
 			}
@@ -266,7 +269,7 @@ func (c *Controller) validateGKENetworkParamSet(ctx context.Context, params *net
 	if params.Spec.DeviceMode != "" && params.Spec.VPC == c.gceCloud.NetworkName() {
 		return &validation{
 			IsValid:      false,
-			ErrorType:    DeviceModeCantUseDefaultVPC,
+			ErrorReason:  DeviceModeCantUseDefaultVPC,
 			ErrorMessage: "GNP with deviceMode can't reference the default VPC",
 		}, nil
 	}
@@ -281,7 +284,7 @@ func validationResultToCondition(validationResult *validation) v1.Condition {
 		condition.Status = v1.ConditionTrue
 	} else {
 		condition.Status = v1.ConditionFalse
-		condition.Reason = validationResult.ErrorType
+		condition.Reason = validationResult.ErrorReason
 		condition.Message = validationResult.ErrorMessage
 	}
 
@@ -297,10 +300,6 @@ func (c *Controller) addFinalizerToGKENetworkParamSet(ctx context.Context, param
 	}
 
 	params.ObjectMeta.Finalizers = append(params.ObjectMeta.Finalizers, GNPFinalizer)
-	if err := c.updateGKENetworkParamSet(ctx, params); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -318,6 +317,16 @@ func (c *Controller) syncGKENetworkParamSet(ctx context.Context, key string) (er
 
 	params := obj.(*networkv1alpha1.GKENetworkParamSet)
 
+	defer func() {
+		// diff objects before updating
+		if updateErr := c.updateGKENetworkParamSet(ctx, params); updateErr != nil {
+			err = errors.Join(updateErr, err)
+		}
+		if updateErr := c.updateGKENetworkParamSetStatus(ctx, params); updateErr != nil {
+			err = errors.Join(updateErr, err)
+		}
+	}()
+
 	// Place a finalizer on GNP
 	err = c.addFinalizerToGKENetworkParamSet(ctx, params)
 	if err != nil {
@@ -325,12 +334,6 @@ func (c *Controller) syncGKENetworkParamSet(ctx context.Context, key string) (er
 	}
 
 	cidrs := []string{}
-
-	defer func() {
-		if updateErr := c.updateGKENetworkParamSetStatus(ctx, params); updateErr != nil {
-			err = updateErr
-		}
-	}()
 
 	// Get and validate the subnet
 	subnet, subnetValidationResult := c.getAndValidateSubnet(ctx, params)
@@ -409,14 +412,14 @@ func crossValidateNetworkAndGnp(network networkv1.Network, params *networkv1alph
 		if params.Spec.PodIPv4Ranges == nil {
 			return &validation{
 				IsValid:      false,
-				ErrorType:    L3SecondaryMissing,
+				ErrorReason:  L3SecondaryMissing,
 				ErrorMessage: "L3 type network requires secondary range to be specified in params",
 			}
 		}
 		if params.Spec.DeviceMode != "" {
 			return &validation{
 				IsValid:      false,
-				ErrorType:    L3DeviceModeExists,
+				ErrorReason:  L3DeviceModeExists,
 				ErrorMessage: "L3 type network can't be used with a device mode specified in params",
 			}
 		}
@@ -426,14 +429,14 @@ func crossValidateNetworkAndGnp(network networkv1.Network, params *networkv1alph
 		if params.Spec.DeviceMode == "" {
 			return &validation{
 				IsValid:      false,
-				ErrorType:    DeviceModeMissing,
+				ErrorReason:  DeviceModeMissing,
 				ErrorMessage: "Device type network requires device mode to be specified in params",
 			}
 		}
 		if params.Spec.PodIPv4Ranges != nil {
 			return &validation{
 				IsValid:      false,
-				ErrorType:    DeviceSecondaryExists,
+				ErrorReason:  DeviceSecondaryExists,
 				ErrorMessage: "Device type network can't be used with a secondary range specified in params",
 			}
 		}

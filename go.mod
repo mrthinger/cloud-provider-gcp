@@ -1,6 +1,9 @@
 module k8s.io/cloud-provider-gcp
 
-go 1.19
+// TODO: see if we can change this to 1.20
+// michael would know if there are issues with this
+// antonio for approval
+go 1.20
 
 require (
 	cloud.google.com/go v0.99.0
@@ -146,6 +149,7 @@ replace (
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.26.2
 	k8s.io/client-go => k8s.io/client-go v0.26.2
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.26.2
+	// TODO: remove this when done dev
 	k8s.io/cloud-provider-gcp/crd => ./crd
 
 	k8s.io/cloud-provider-gcp/providers => ./providers

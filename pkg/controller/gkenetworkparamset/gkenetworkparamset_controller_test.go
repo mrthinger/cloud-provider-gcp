@@ -453,7 +453,7 @@ func TestCrossValidateNetworkAndGnp(t *testing.T) {
 			paramSet: paramSet,
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    L3SecondaryMissing,
+				ErrorReason:  L3SecondaryMissing,
 				ErrorMessage: "L3 type network requires secondary range to be specified in params",
 			},
 		},
@@ -481,7 +481,7 @@ func TestCrossValidateNetworkAndGnp(t *testing.T) {
 			},
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    L3DeviceModeExists,
+				ErrorReason:  L3DeviceModeExists,
 				ErrorMessage: "L3 type network can't be used with a device mode specified in params",
 			},
 		},
@@ -499,7 +499,7 @@ func TestCrossValidateNetworkAndGnp(t *testing.T) {
 			paramSet: paramSet,
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    DeviceModeMissing,
+				ErrorReason:  DeviceModeMissing,
 				ErrorMessage: "Device type network requires device mode to be specified in params",
 			},
 		},
@@ -527,7 +527,7 @@ func TestCrossValidateNetworkAndGnp(t *testing.T) {
 			},
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    DeviceSecondaryExists,
+				ErrorReason:  DeviceSecondaryExists,
 				ErrorMessage: "Device type network can't be used with a secondary range specified in params",
 			},
 		},
@@ -653,7 +653,7 @@ func TestValidateGKENetworkParamSet(t *testing.T) {
 			subnet: subnet,
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    SecondaryRangeNotFound,
+				ErrorReason:  SecondaryRangeNotFound,
 				ErrorMessage: "nonexistent-secondary-range not found in test-subnet",
 			},
 		},
@@ -677,7 +677,7 @@ func TestValidateGKENetworkParamSet(t *testing.T) {
 			subnet: subnet,
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    DeviceModeCantBeUsedWithSecondaryRange,
+				ErrorReason:  DeviceModeCantBeUsedWithSecondaryRange,
 				ErrorMessage: "deviceMode and secondary range can not be specified at the same time",
 			},
 		},
@@ -717,7 +717,7 @@ func TestValidateGKENetworkParamSet(t *testing.T) {
 			subnet: subnet,
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    DeviceModeVPCAlreadyInUse,
+				ErrorReason:  DeviceModeVPCAlreadyInUse,
 				ErrorMessage: "GNP with deviceMode can't reference a VPC already in use. VPC 'existing-vpc' is already in use by 'existing-paramset'",
 			},
 		},
@@ -736,7 +736,7 @@ func TestValidateGKENetworkParamSet(t *testing.T) {
 			subnet: subnet,
 			expectedResult: &validation{
 				IsValid:      false,
-				ErrorType:    DeviceModeCantUseDefaultVPC,
+				ErrorReason:  DeviceModeCantUseDefaultVPC,
 				ErrorMessage: "GNP with deviceMode can't reference the default VPC",
 			},
 		},

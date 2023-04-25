@@ -37,6 +37,7 @@ func startGkeNetworkParamsController(ccmConfig *cloudcontrollerconfig.CompletedC
 	kubeConfig := ccmConfig.Complete().Kubeconfig
 	kubeConfig.ContentType = jsonContentType //required to serialize GKENetworkParamSet to json
 
+	// TODO: followup with Antonio to see if we can share informers accross ipam and gnp
 	networkClient, err := networkclientset.NewForConfig(kubeConfig)
 	if err != nil {
 		return nil, false, err
